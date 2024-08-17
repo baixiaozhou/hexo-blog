@@ -8,6 +8,8 @@ tags:
   - Linux
 description: java常见问题和排查的基本方法和工具介绍
 date: 2024-07-30 15:32:13
+cover: /images/java.jpg
+banner: /images/java.jpg
 ---
 
 <!-- more -->

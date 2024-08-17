@@ -1,0 +1,4 @@
+open_graph:
+  enable: true
+  twitter_id: i1234 # for open_graph meta
+

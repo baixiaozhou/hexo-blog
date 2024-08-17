@@ -1,6 +1,17 @@
 ---
 title: JAVA问题定位
+author: baixiaozhou
+categories:
+  - 问题排查
+tags:
+  - JAVA
+  - Linux
+description: java常见问题和排查的基本方法和工具介绍
+date: 2024-07-30 15:32:13
 ---
+
+<!-- more -->
+
 
 # 一、JAVA 相关命令
 

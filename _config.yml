@@ -4,7 +4,7 @@
 
 # Site
 title: 周小白
-avatar: /source/images/persion.jpg 
+avatar: /images/logo.jpeg
 favicon:
 subtitle: ''
 description: '个人博客'
@@ -111,3 +111,13 @@ deploy:
   repository: git@github.com:baixiaozhou/baixiaozhou.github.io.git
   branch: main
 
+#inject:
+#  head:
+#    - <link rel="stylesheet" href="https://cdn.staticfile.org/lxgw-wenkai-screen-webfont/1.6.0/lxgwwenkaiscreen.css" media="all"/>
+#    - <link rel="stylesheet" href="/css/darkmode.css"> # 黑夜样式
+#  script:
+#    - <script type="text/javascript" src="/js/darkmode.js"></script> # 黑夜控制
+
+inject:
+  head:
+    - <link rel="stylesheet" href="https://cdn.staticfile.org/lxgw-wenkai-screen-webfont/1.6.0/lxgwwenkaiscreen.css" media="all"/>

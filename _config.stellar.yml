@@ -52,3 +52,56 @@ menubar:
        title: 社交
        url: /friends/
 
+style:
+  font-family:
+    logo: '"LXGW WenKai Screen", system-ui, "Microsoft Yahei", "Segoe UI", -apple-system, Roboto, Ubuntu, "Helvetica Neue", Arial, "WenQuanYi Micro Hei", sans-serif'
+    body: '"LXGW WenKai Screen", system-ui, "Microsoft Yahei", "Segoe UI", -apple-system, Roboto, Ubuntu, "Helvetica Neue", Arial, "WenQuanYi Micro Hei", sans-serif'
+
+
+widgets:
+  #### 自动生成的页面 ####
+  # 主页
+  home: search, welcome, recent, tagcloud, timeline, statement # for home
+
+tag_plugins:
+  # {% image %}
+  image:
+    fancybox: true
+
+footer:
+  social:
+    github:
+      icon: '<img src="/images/git.png"/>'
+      url: https://github.com/baixiaozhou
+    music:
+      icon: '<img src="/images/music.jpeg"/>'
+      url: https://music.163.com/#/user/home?id=339946379
+    comments:
+      icon: '<img src="/images/liuyanban.jpeg"/>'
+      url: /comments
+    mode:
+      icon: '<img src="/images/dark.jpeg"/>'
+      url: javaScript:void(0);
+ 
+
+  content: |
+    <span id="runtime_span"></span>
+    <script type="text/javascript">
+    function show_runtime() {
+            window.setTimeout("show_runtime()", 1000);
+            X = new Date("2024/08/13 10:00:00");
+            Y = new Date();
+            T = (Y.getTime() - X.getTime());
+            M = 24 * 60 * 60 * 1000;
+            a = T / M;
+            A = Math.floor(a);
+            b = (a - A) * 24;
+            B = Math.floor(b);
+            c = (b - B) * 60;
+            C = Math.floor((b - B) * 60);
+            D = Math.floor((c - C) * 60);
+            runtime_span.innerHTML = "⏱️本站已运行 " + A + "天" + B + "小时" + C + "分" + D + "秒"
+     }
+     show_runtime();
+     </script>
+

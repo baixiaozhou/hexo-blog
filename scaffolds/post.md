@@ -8,6 +8,12 @@ tags:
 - Programming
 - Hexo
 description: "A brief description of the content"
+references:
+cover: 
+banner: 
+repo: baixiaozhou/SysStress
+leftbar: welcome
+rightbar: statement
 ---
 
 # {{ title }}

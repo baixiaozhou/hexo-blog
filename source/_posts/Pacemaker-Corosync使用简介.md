@@ -435,10 +435,10 @@ virtual_ip	(ocf::heartbeat:IPaddr2):	Started node3
 ### 增加服务
 
 我们以 httpd 服务为例，在集群中创建资源,首先安装对应服务:
-```
+``` bash
 sudo yum install httpd -y
-sudo systemctl start httpd
-sudo systemctl enable httpd
+sudo systemctl start httpd # 这里可选择不启动，后续如果通过pcs 直接托管，需要先停掉，
+sudo systemctl enable httpd 
 ```
 
 创建 resource:
@@ -446,9 +446,127 @@ sudo systemctl enable httpd
 pcs resource create WebService ocf:heartbeat:apache configfile=/etc/httpd/conf/httpd.conf op monitor interval=30s
 ```
 
-### 结合 LVS 进行使用
+## 结合 LVS + ldirectord 进行使用
 
+如果环境是一套多节点集群，在生产中我们肯定需要充分利用起这些节点，所以就要考虑流量分发。在这一层面上，我们可以使用 lvs 进行流量分发。这里首先对 lvs 对一个简单的介绍
 
+LVS（Linux Virtual Server）是一个基于 IP 负载均衡技术的开源软件项目，主要用于构建高可用、高性能的负载均衡集群。LVS 是 Linux 内核的一部分，通过网络层的负载均衡技术，将来自客户端的请求分发到多个后端服务器，从而实现分布式处理、提高系统的处理能力和可靠性。
+
+LVS 主要通过三种负载均衡模式（NAT 模式、DR 模式、TUN 模式）来实现流量的分发，支持大规模并发请求的处理，通常用于大型网站、电子商务平台和高访问量的 Web 应用中。
+
+LVS 的特点
+1. 高性能: LVS 工作在网络层（第4层），基于 IP 进行流量转发，性能极高。它能够处理大量的并发连接，适合高流量、大规模的网站和服务。
+2. 高可用性: LVS 通常与 Keepalived、Pacemaker 等高可用性工具配合使用，以实现负载均衡器的自动故障切换，确保服务的高可用性和稳定性。
+3. 多种负载均衡算法: LVS 提供了多种负载均衡算法，如轮询（Round Robin）、最小连接（Least Connection）、基于目标地址哈希（Destination Hashing）等，可以根据具体需求选择合适的算法进行流量分发。
+4. 多种工作模式, LVS 支持三种主要工作模式：
+	-	NAT 模式（网络地址转换模式）：LVS 充当请求和响应的中介，适用于小规模集群。
+	-	DR 模式（直接路由模式）：请求由 LVS 转发，但响应直接返回给客户端，适用于大型集群，性能高。
+	-	TUN 模式（IP 隧道模式）：类似于 DR 模式，但支持跨网络部署，非常适合广域网负载均衡。
+5. 高扩展性: LVS 可以轻松地扩展和管理多台服务器，支持动态添加或移除后端服务器，适应业务需求的变化，且不影响服务的正常运行。
+6. 透明性: 对客户端和后端服务器来说，LVS 的存在是透明的。客户端并不感知负载均衡的存在，访问体验一致。后端服务器也不需要做特殊的配置，只需处理 LVS 转发的请求。
+7. 成熟且稳定: 作为一个成熟的负载均衡解决方案，LVS 被广泛应用于生产环境中，经过多年发展，功能完备，稳定性高。
+8. 安全性: LVS 可以与防火墙等安全工具结合使用，增强系统的安全性。此外，LVS 还支持 IP 地址过滤、端口过滤等功能，提供一定程度的安全保护。
+
+ldirectord 是一个守护进程，用于管理和监控由 LVS 提供的虚拟服务（Virtual Services）。其主要功能包括：
+
+1.	监控后端服务器：ldirectord 定期检查后端服务器的健康状况，确保只有健康的服务器参与流量分配。
+2.	动态配置：基于后端服务器的健康状况，ldirectord 可以动态调整 LVS 的配置。例如，当一台服务器宕机时，ldirectord 会自动将其从 LVS 配置中移除。
+3.	高可用性：结合 heartbeat 等高可用性工具，ldirectord 可以确保在主节点故障时，负载均衡服务能够自动切换到备用节点，继续提供服务。
+
+### 安装部署
+
+安装lvs：
+``` bash
+yum install lvm2 ipvsadm -y
+```
+在这里找包有一些技巧，比如一开始 chatgpt 提供的说法是要安装`lvs` 和 `ipvsadm`，但是在我的环境上通过`yum install -y lvs` 的时候提示没有这个包，那我们可以通过 yum 提供的一些命令来简单锁定一下，比如 `yum provides lvs`,这样就会把包含了这个命令的包显示出来（适用于知道命令但是不知道是哪个包的场景），
+
+安装 ldirector：
+```
+# 这里我用 yum 下载是没有找到对应包的，找了一圈也没找到安装方法，所以直接找的 rpm 包
+# 下载地址: ftp://ftp.icm.edu.pl/vol/rzm3/linux-opensuse/update/leap/15.2/oss/x86_64/ldirectord-4.4.0+git57.70549516-lp152.2.9.1.x86_64.rpm
+# 上传到机器上后，进行安装
+rpm -Uvh --force ldirectord-4.4.0+git57.70549516-lp152.2.9.1.x86_64.rpm
+
+# 需要依赖，先安装依赖,再装包
+yum install -y perl-IO-Socket-INET6 perl-MailTools perl-Net-SSLeay perl-Socket6 perl-libwww-perl
+# 操作完成之后，启动服务
+systemctl start ldirectord.service
+```
+服务启动失败:
+{% image /images/ldirectord.png ldirectord服务 fancybox:true %}
+
+这里有点坑，缺少了依赖的文件，但是装包的时候没有提示，需要再安装: `yum install -y perl-Sys-Syslog`, 安装完成后此问题消失，但是此时配置文件还没配置，所以服务还起不来。
+
+### pcs 结合 lvs、ldirectord
+
+在上文中，我们创建了一个 httpd 服务和 vip 资源。 在实际生产中，要充分利用节点性能，我们可能要在多个节点上启动httpd 示例，我们在每个节点上都启动一个实例，然后将他们归到一个组中:
+``` bash
+pcs resource delete WebService # 移除之前创建的服务
+pcs resource create WebService1 ocf:heartbeat:apache configfile=/etc/httpd/conf/httpd.conf op monitor interval=30s
+pcs resource create WebService2 ocf:heartbeat:apache configfile=/etc/httpd/conf/httpd.conf op monitor interval=30s --force
+pcs resource create WebService3 ocf:heartbeat:apache configfile=/etc/httpd/conf/httpd.conf op monitor interval=30s --force # 创建三个服务
+
+pcs constraint location WebService1 prefers node2
+pcs constraint location WebService2 prefers node3
+pcs constraint location WebService3 prefers node4  # 限制对应 resource 服务只能在指定节点上运行
+```
+
+配置 ldirectord:
+``` conf
+checktimeout=10
+checkinterval=2
+autoreload=yes
+logfile="/var/log/ldirectord.log"
+quiescent=yes
+
+virtual=vip:80 # 之前绑定的 VIP
+    real=192.168.1.2:80 gate
+    real=192.168.1.3:80 gate
+    real=192.168.1.4:80 gate
+    fallback=127.0.0.1:80
+    service=http
+    request="index.html"
+    receive="HTTP/1.1 200 OK"
+    scheduler=rr
+    protocol=tcp
+    checktype=negotiate
+```
+
+然后在通过 `ipvsadm -ln` 就可以查看到详细的信息:
+``` bash
+IP Virtual Server version 1.2.1 (size=4096)
+Prot LocalAddress:Port Scheduler Flags
+  -> RemoteAddress:Port           Forward Weight ActiveConn InActConn
+TCP  vip:80 rr
+  -> 192.168.1.2:80               Route   0      0          0
+  -> 192.168.1.3:80               Route   0      0          0
+  -> 192.168.1.4:80               Route   0      0          0
+  -> 127.0.0.1:80                 Route   1      0          0
+```
+
+然后我们可以在 pcs 上创建一个资源 lvs 相关的资源:
+``` bash
+pcs resource create my_lvs ocf:heartbeat:ldirectord \
+    configfile=/etc/ha.d/ldirectord.cf \
+    ldirectord=/usr/sbin/ldirectord  \
+    op monitor interval=15s timeout=60s \
+    op stop timeout=60s
+```
+这里的ocf:heartbeat:ldirectord 在有的版本中会默认安装，有的版本不会，如果没有的话需要手动下载: https://github.com/ClusterLabs/resource-agents/blob/main/ldirectord/OCF/ldirectord.in
+存放到: `/usr/lib/ocf/resource.d/heartbeat/ldirectord` 并添加可执行权限: `chmod +x /usr/lib/ocf/resource.d/heartbeat/ldirectord`
+
+创建完成后，我们可以将 vip 和 lvs 绑定到一个组中，这样 lvs 就会跟着 vip 进行转移了:
+``` bash
+pcs resource group add balanceGroup virtual_ip my_lvs
+```
+通过`pcs status`查看就可以看到:
+```
+Resource Group: balanceGroup
+     virtual_ip	(ocf::heartbeat:IPaddr2):	Started node2
+     my_lvs	(ocf::heartbeat:ldirectord):	Started node2
+```
+不断对节点进行关闭测试，可以看到 lvs 和 vip 始终都在同一个节点上
 
 
 

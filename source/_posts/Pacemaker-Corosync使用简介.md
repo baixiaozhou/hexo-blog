@@ -105,6 +105,44 @@ sudo passwd hacluster
 | `alert`     | 管理 Pacemaker 警报                 | `pcs alert create node=node1 severity=critical` 创建警报 |
 | `client`    | 管理 pcsd 客户端配置                | `pcs client cert-key-gen --force` 生成新的客户端证书 |
 
+此外，packmaker 还提供了其他的命令，比如 crm 的一系列工具:
+
+| 工具名                | 解释                                                                                     | 示例                                                                                   |
+|-----------------------|------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------|
+| `crm_attribute`        | 管理集群属性，包括设置、修改或删除节点属性。      | `crm_attribute --node node1 --name attr_name --update attr_value` 设置节点属性。       |
+| `crm_diff`             | 比较两个 CIB 配置文件的差异，便于配置版本管理。   | `crm_diff cib_old.xml cib_new.xml` 比较两个 CIB 文件的差异。                           |
+| `crm_error`            | 显示集群运行过程中遇到的错误信息，帮助排查故障。   | `crm_error -s 12345` 显示特定错误代码的详细信息。                                      |
+| `crm_failcount`        | 查看或管理资源的失败计数，影响资源的自动重新调度。 | `crm_failcount --query --resource my_resource --node node1` 查看失败计数。             |
+| `crm_master`           | 管理主从资源（如 DRBD）状态的工具，用于启动或停止主从资源。 | `crm_master --promote my_resource` 提升资源为主状态。                                  |
+| `crm_mon`              | 实时监控集群状态，显示资源、节点、失败信息。      | `crm_mon --interval=5s --show-detail` 每5秒更新监控，显示详细信息。                    |
+| `crm_node`             | 管理集群节点的工具，包括查看节点状态、删除节点等。 | `crm_node -l` 列出所有集群节点。                                                      |
+| `crm_report`           | 生成集群故障报告的工具，汇总集群状态、日志和诊断信息。  | `crm_report -f report.tar.bz2` 生成详细的故障报告。                                   |
+| `crm_resource`         | 管理集群资源，包括启动、停止、迁移和清除资源。     | `crm_resource --move my_resource --node node2` 将资源迁移到另一个节点。                |
+| `crm_shadow`           | 允许对 CIB 进行“影子”配置，便于测试和调试。       | `crm_shadow --create shadow_test` 创建影子配置。                                       |
+| `crm_simulate`         | 模拟集群运行状态的工具，用于测试集群配置的行为。   | `crm_simulate --live --save-output output.xml` 运行模拟，并保存输出。                  |
+| `crm_standby`          | 将节点设置为待机状态，临时不参与资源调度，或重新激活节点。 | `crm_standby --node node1 --off` 将节点设置为待机状态。                                |
+| `crm_ticket`           | 管理集群的 ticket，用于决定哪些资源在哪些位置可以运行（多站点集群）。 | `crm_ticket --grant my_ticket --node node1` 授权 ticket 给指定节点。                   |
+| `crm_verify`           | 验证当前集群配置的工具，检查配置文件的完整性和正确性。 | `crm_verify --live-check` 验证当前运行中的集群配置。                                  |
+
+pacemaker 和 crm 的命令对比:
+
+1. pcs（Pacemaker/Corosync Shell）
+  - 简介: pcs 是 Pacemaker 和 Corosync 集群管理的命令行工具。它主要用于 Red Hat 系列操作系统（例如 RHEL、CentOS 等）。pcs 提供了一个简单的命令行界面，用于管理集群、资源、节点、约束等功能。
+  - 功能:
+    - 管理 Pacemaker 集群、Corosync 配置、STONITH 设备、资源和约束等。
+    - 提供集群的创建、启动、停止、删除、资源添加、约束设置等命令。
+    - 提供简单易用的命令接口，能够将集群管理的命令封装成一步到位的操作。
+    - 支持通过 pcsd 提供 Web 界面的管理。
+  - 适用场景: pcs 更加适用于初学者和需要快速操作的用户，因为它提供了很多高层次的命令，简化了集群管理。
+
+2. crm（Cluster Resource Manager Shell）
+  - 简介: crm 是 Pacemaker 的原生命令行工具，提供更加底层的控制。crm 主要用于 Pacemaker 集群资源管理和调度，支持在更细粒度上配置和管理集群资源。
+  - 功能:
+    - 提供更细致的资源管理和集群控制功能。
+    - crm 的指令可以进行更复杂的操作，比如编辑 CIB (Cluster Information Base) 的 XML 配置文件。
+    - 允许更加精细的配置，适合对集群系统有深度了解的用户。
+  - 适用场景: crm 更加适合高级用户，特别是那些需要精确配置、排查问题或操作底层 Pacemaker 资源的场景。
+
 ## 节点认证和集群创建
 
 在集群中的任意一个节点上执行:
@@ -568,5 +606,79 @@ Resource Group: balanceGroup
 ```
 不断对节点进行关闭测试，可以看到 lvs 和 vip 始终都在同一个节点上
 
+## 增加节点属性
 
+我们这里使用另外一个观察集群状态的命令:`crm_mon`, 比如`crm_mon -A1`
+``` bash
+[root@node2 rpm]# crm_mon -A1
+Stack: corosync
+Current DC: node3 (version 1.1.23-1.el7_9.1-9acf116022) - partition with quorum
+Last updated: Thu Sep  5 22:09:53 2024
+Last change: Wed Sep  4 18:17:25 2024 by root via cibadmin on node3
 
+3 nodes configured
+6 resource instances configured
+
+Online: [ node2 node3 node4 ]
+
+Active resources:
+
+ my_ping_fence_device	(stonith:fence_heuristics_ping):	Started node3
+ WebService1	(ocf::heartbeat:apache):	Started node4
+ WebService2	(ocf::heartbeat:apache):	Started node3
+ WebService3	(ocf::heartbeat:apache):	Started node4
+ Resource Group: balanceGroup
+     virtual_ip	(ocf::heartbeat:IPaddr2):	Started node2
+     my_lvs	(ocf::heartbeat:ldirectord):	Started node2
+
+Node Attributes:
+* Node node2:
+* Node node3:
+* Node node4:
+.....
+```
+输出和`pcs status`查看到的效果基本上是差不多的。但是在下面有`Node Attributes`，这里我们看下节点属性怎么设置:
+``` bash
+pcs node attribute node2 role=master
+pcs node attribute node3 role=standby
+pcs node attribute node4 role=standby
+```
+或者
+``` bash
+crm_attribute --node node2 --name mysql --update master
+crm_attribute --node node3 --name mysql --update standby
+```
+设置完成之后，我们就可以看到节点属性:
+```
+Node Attributes:
+* Node node2:
+    + mysql                           	: master
+    + role                            	: master
+* Node node3:
+    + mysql                           	: standby
+    + role                            	: standby
+* Node node4:
+    + role                            	: standby
+```
+那有人就会好奇这样设置有什么用呢？主要用途是在哪里呢。
+
+这里的指标往往是动态的，可以根据自己喜好结合一些扩展进行变化，比如部署了一套 postgresql 集群，集群中有主有备，有同步节点也有异步节点，有的节点状态可能有问题，那我们怎么能够显示出这个集群的整体情况呢，这样就可以使用 Node Attributes进行设置，关于如果搭建 pcs + postgresql 的集群，大家可以参考这篇文章: [基于Pacemaker的PostgreSQL高可用集群](https://www.cnblogs.com/Alicebat/p/14148933.html)
+
+最终我们看到的效果如下:
+```
+Node Attributes:
+* Node pg01:
+    + master-pgsql                    	: 1000      
+    + pgsql-data-status               	: LATEST    
+    + pgsql-master-baseline           	: 0000000008000098
+    + pgsql-status                    	: PRI       
+* Node pg02:
+    + master-pgsql                    	: -INFINITY 
+    + pgsql-data-status               	: STREAMING|ASYNC
+    + pgsql-status                    	: HS:async  
+* Node pg03:
+    + master-pgsql                    	: 100       
+    + pgsql-data-status               	: STREAMING|SYNC
+    + pgsql-status                    	: HS:sync   
+```
+当集群发生节点变动，状态异常时，我们就可以根据 attibutes 的一些信息查看定位。

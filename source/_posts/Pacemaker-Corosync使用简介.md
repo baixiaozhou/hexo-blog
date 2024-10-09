@@ -8,8 +8,10 @@ tags:
   - Corosync
   - Linux
   - 高可用方案
+  - 负载均衡
+  - LVS
 description: Pacemaker+Corosync使用简介
-repo: baixiaozhou/SysStress
+repo: ClusterLabs/pacemaker
 date: 2024-08-30 17:59:26
 references:
   - '[红帽官方文档](https://docs.redhat.com/zh_hans/documentation/red_hat_enterprise_linux/7/html/high_availability_add-on_reference/index)'

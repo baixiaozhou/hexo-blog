@@ -8,7 +8,7 @@ tags:
   - Chronyd
   - 时钟同步
 description: 时钟同步服务 chronyd 介绍
-repo: baixiaozhou/SysStress
+repo: mlichvar/chrony
 date: 2024-09-09 14:31:17
 references:
   - '[Why does "chronyc sources" output unexpected NTP servers](https://access.redhat.com/solutions/4072781)'

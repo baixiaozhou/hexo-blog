@@ -185,7 +185,7 @@ Root dispersion : 0.000785699 seconds
 Update interval : 64.8 seconds
 Leap status     : Normal
 ```
-这里能看到更加细致的同步信息，比如时间的便宜量、更新间隔等
+这里能看到更加细致的同步信息，比如时间的偏移量、更新间隔等
 
 #### chronyc makestep
 ``` bash

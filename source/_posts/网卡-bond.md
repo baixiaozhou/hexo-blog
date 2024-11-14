@@ -284,3 +284,82 @@ details partner lacp pdu:
     port number: 2
     port state: 61
 ```
+
+## 性能测试
+在网卡bond 做完之后，我们需要对性能进行测试，测试一下网卡的带宽是否能达到期望的要求,比较常用的测试工具有 `iperf` 和 `netperf`, 我们这里使用`iperf`:
+```bash
+# 在服务器和客户端安装 iperf, 这里需要注意的是 iperf 有两个版本， iperf3 需要采用多服务器模式才可以打到性能要求，所以这里安装 iperf2
+yum install -y iperf # 安装iperf2
+
+# 服务器端（做 bond的服务器）启动 server
+iperf -s -p 9999
+
+# 客户端发起请求
+iperf -c 192.168.11.11 -p 9999 -P 200 -t 100 # 200个线程，持续 100s
+```
+等完成后，观察测试结果:
+{% image /images/149a73567dc03d8655a97671348dce2d.png 测试结果 fancybox:true %}
+可以看到这里的网卡总带宽跑到了 197Gb/s,已经接近跑满。同时我们也可以观察下网卡的监控:
+{% image /images/image.png 网卡监控 fancybox:true %}
+可以看到 bond 的流量均匀的打到了两个slave 网卡上。
+
+## 性能调优
+在网卡bond 完成之后，有的时候测试的性能可能并不理想，那么这个时候一般有以下方法进行调优，以 bond4 为例:
+
+### 确保 slave 网卡均匀的接收到了流量
+因为bond4 是动态聚合类型的，需要两张网卡都接收到流量，我们可以通过监控查看网卡的流量情况，以 prometheus 为例,可以通过以下指标查看:
+```
+rate(node_network_receive_packets_total{node="xxx"}[1m])
+```
+
+### 启用 Jumbo Frames
+启用 Jumbo Frames 是指将网卡的最大传输单元（MTU，Maximum Transmission Unit）增大到标准以太网帧（1500 字节）以上，通常设置为 9000 字节左右。Jumbo Frames 可以显著提高传输效率，减少 CPU 开销，在需要传输大量数据的场景中（如高性能计算和数据中心网络），启用 Jumbo Frames 能提升网络性能。
+
+优势:
+1.	减少数据包数量：由于每个数据包承载的数据更多，数据传输时需要的包数量会减少，进而减少网络和主机的负载。
+2.	降低 CPU 开销：更少的数据包意味着更少的中断请求（IRQ），降低了 CPU 的处理压力，尤其在高吞吐量网络下效果更明显。
+3.	提高吞吐量：在大数据传输的场景中，Jumbo Frames 可以有效增加带宽利用率。
+
+操作步骤:
+1. 查看当前网卡的 mtu
+```bash
+[root@node1 ~]# ip a show eth0
+2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP group default qlen 1000
+```
+可以看到当前网卡的 mtu 是 1500
+2. 设置 mtu 为 9000
+```bash
+ip link set dev <网卡名> mtu 9000
+# 如果需要重启之后也保持，那么需要在配置文件中添加
+MTU=9000
+```
+
+### 系统调优
+- 调整 CPU 中断绑定: 如果两张网卡的中断处理都绑定在同一个 CPU 核心上，可能会导致性能瓶颈。可以使用 irqbalance 或手动调整中断的 CPU 绑定，将中断分布到多个 CPU 核心，以减少单核负载。
+- 优化队列数量和大小：可以通过调整网卡的队列数量和大小，提高网卡的并行处理能力
+```bash
+ethtool -G enp133s0f1 rx 8192 tx 8192
+```
+- 调整网络栈参数：通过 /etc/sysctl.conf 文件进行 TCP 参数优化，例如增大 TCP 缓冲区，优化内核参数以支持高吞吐量：
+```
+# 增加 TCP 缓冲区大小
+net.core.rmem_max = 16777216
+net.core.wmem_max = 16777216
+net.ipv4.tcp_rmem = 4096 87380 16777216
+net.ipv4.tcp_wmem = 4096 65536 16777216
+```
+
+## 故障测试
+既然是双网卡做 bond，尝试关闭其中一个网卡进行测试:
+```bash
+[root@node2 ~]# ifdown enp1s0f0
+```
+然后继续使用 iperf 进行测试，可以看到带宽只能跑到接近 100G
+{% image /images/image-2.png 测试结果 fancybox:true %}
+bond0 和 另外一张up 的网卡有流量并且曲线重合
+{% image /images/image-1.png 网卡监控 fancybox:true %}
+从结果来看符合预期
+
+# 声明
+此文章已经发布在个人博客上: baixiaozhou.github.io  
+码字不易，希望文章对各位读者朋友们有所帮助和启发，文章的撰写有的时候是根据自己的经验和遇到的一些场景所思考的，存在不足和错误的地方，希望读者朋友们指正

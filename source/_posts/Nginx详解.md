@@ -532,6 +532,26 @@ server {
 }
 ```
 
-# 实战配置
+# 实例
 
+假如说我现在有一个服务器，上面部署了 kibana 和 nginx，我现在想把 kibana 暴露出来，可以通过下面的方式实现:
 
+进入 nginx 的配置目录，创建一个 kibana.conf 文件`/etc/nginx/conf.d/kibana.conf`，内容如下:
+```json
+server {
+    listen 80;
+    server_name kibana.example.com;
+
+    location / {
+        proxy_pass http://localhost:5601;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+```
+通过`nginx -t`进行检查，没有问题后，通过`nginx -s reload`进行重载。
+
+在本地配置 ip 和域名的映射，就可以通过域名访问 kibana 了。
